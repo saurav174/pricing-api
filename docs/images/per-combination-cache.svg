@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="420" viewBox="0 0 1080 420" role="img" aria-label="Per-combination cache diagram">
+  <defs>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#444" />
+    </marker>
+    <style>
+      .container { fill: #f6f9ff; stroke: #456aa3; stroke-width: 2; rx: 18; }
+      .box { fill: #fff; stroke: #2f3a4a; stroke-width: 2; rx: 12; }
+      .cache { fill: #eefaf1; stroke: #357a47; stroke-width: 2; rx: 12; }
+      .external { fill: #fff7e6; stroke: #9a6b00; stroke-width: 2; rx: 12; }
+      .title { font: 700 18px Arial, sans-serif; fill: #172033; }
+      .subtitle { font: 700 15px Arial, sans-serif; fill: #33527d; }
+      .text { font: 14px Arial, sans-serif; fill: #172033; }
+      .label { font: 13px Arial, sans-serif; fill: #444; }
+      .arrow { stroke: #444; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <text x="540" y="34" text-anchor="middle" class="title">Approach considered: cache each requested combination independently</text>
+
+  <rect x="40" y="168" width="150" height="78" class="box" />
+  <text x="115" y="199" text-anchor="middle" class="title">User</text>
+  <text x="115" y="224" text-anchor="middle" class="text">Requests one rate</text>
+
+  <rect x="250" y="70" width="560" height="280" class="container" />
+  <text x="530" y="100" text-anchor="middle" class="subtitle">Rails Pricing API</text>
+
+  <rect x="290" y="150" width="165" height="85" class="box" />
+  <text x="372" y="184" text-anchor="middle" class="title">Pricing Endpoint</text>
+  <text x="372" y="210" text-anchor="middle" class="text">Build cache key</text>
+
+  <rect x="560" y="145" width="205" height="95" class="cache" />
+  <text x="662" y="179" text-anchor="middle" class="title">In-memory Cache</text>
+  <text x="662" y="204" text-anchor="middle" class="text">One entry per</text>
+  <text x="662" y="224" text-anchor="middle" class="text">hotel + room + period</text>
+
+  <rect x="870" y="150" width="170" height="85" class="external" />
+  <text x="955" y="184" text-anchor="middle" class="title">Dynamic Pricing API</text>
+  <text x="955" y="210" text-anchor="middle" class="text">Fetch one rate</text>
+
+  <path d="M190 207 C215 207, 225 207, 290 207" class="arrow" />
+  <text x="235" y="193" text-anchor="middle" class="label">GET pricing</text>
+
+  <path d="M455 185 C495 165, 520 165, 560 185" class="arrow" />
+  <text x="508" y="153" text-anchor="middle" class="label">check key</text>
+
+  <path d="M560 217 C515 257, 485 260, 437 228" class="arrow" />
+  <text x="508" y="282" text-anchor="middle" class="label">valid: cached rate</text>
+
+  <path d="M765 186 C810 162, 835 162, 870 186" class="arrow" />
+  <text x="818" y="151" text-anchor="middle" class="label">missing / expired</text>
+
+  <path d="M870 220 C830 275, 792 289, 735 240" class="arrow" />
+  <text x="818" y="303" text-anchor="middle" class="label">fresh rate stored in cache</text>
+
+  <path d="M290 223 C228 292, 205 294, 165 246" class="arrow" />
+  <text x="225" y="323" text-anchor="middle" class="label">single rate response</text>
+</svg>
