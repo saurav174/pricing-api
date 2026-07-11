@@ -24,5 +24,5 @@ module PricingOptions
       }
     end
   end
-end# frozen_string_literal: true
+end
 
