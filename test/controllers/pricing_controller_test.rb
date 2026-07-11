@@ -40,6 +40,107 @@ class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should refresh upstream when cache has expired" do
+    upstream_calls = 0
+    mock_response = rates_response(
+      "FloatingPointResort|SingletonRoom|Summer" => "15000"
+    )
+
+    RateApiClient.stub(:get_rates, lambda { |**_args|
+      upstream_calls += 1
+      mock_response
+    }) do
+      get api_v1_pricing_url, params: pricing_params
+      assert_response :success
+      assert_equal 1, upstream_calls
+
+      expire_pricing_cache!
+
+      get api_v1_pricing_url, params: pricing_params
+      assert_response :success
+      assert_equal 2, upstream_calls
+
+      json_response = JSON.parse(@response.body)
+      assert_equal "15000", json_response["rate"]
+    end
+  end
+
+  test "should serve cached rate when upstream is unavailable but cache is still fresh" do
+    mock_response = rates_response(
+      "FloatingPointResort|SingletonRoom|Summer" => "15000"
+    )
+
+    RateApiClient.stub(:get_rates, mock_response) do
+      get api_v1_pricing_url, params: pricing_params
+      assert_response :success
+    end
+
+    upstream_calls = 0
+    failed_response = OpenStruct.new(success?: false, body: { "error" => "Service down" })
+
+    RateApiClient.stub(:get_rates, lambda { |**_args|
+      upstream_calls += 1
+      failed_response
+    }) do
+      get api_v1_pricing_url, params: pricing_params
+
+      assert_response :success
+      assert_equal 0, upstream_calls
+
+      json_response = JSON.parse(@response.body)
+      assert_equal "15000", json_response["rate"]
+    end
+  end
+
+  test "should retry upstream once failure cooldown has passed" do
+    upstream_calls = 0
+    failed_response = OpenStruct.new(success?: false, body: { "error" => "Service down" })
+    success_response = rates_response(
+      "FloatingPointResort|SingletonRoom|Summer" => "15000"
+    )
+
+    RateApiClient.stub(:get_rates, lambda { |**_args|
+      upstream_calls += 1
+      failed_response
+    }) do
+      get api_v1_pricing_url, params: pricing_params
+      assert_response :service_unavailable
+      assert_equal 1, upstream_calls
+    end
+
+    expire_failure_cooldown!
+
+    RateApiClient.stub(:get_rates, lambda { |**_args|
+      upstream_calls += 1
+      success_response
+    }) do
+      get api_v1_pricing_url, params: pricing_params
+
+      assert_response :success
+      assert_equal 2, upstream_calls
+
+      json_response = JSON.parse(@response.body)
+      assert_equal "15000", json_response["rate"]
+    end
+  end
+
+  test "should request all supported combinations from upstream" do
+    requested_attributes = nil
+    mock_response = rates_response(
+      "FloatingPointResort|SingletonRoom|Summer" => "15000"
+    )
+
+    RateApiClient.stub(:get_rates, lambda { |attributes:, **_args|
+      requested_attributes = attributes
+      mock_response
+    }) do
+      get api_v1_pricing_url, params: pricing_params
+
+      assert_response :success
+      assert_equal PricingOptions.supported_combinations, requested_attributes
+    end
+  end
+
   test "should return error when rate API fails" do
     mock_response = OpenStruct.new(success?: false, body: { "error" => "Rate not found" })
 
@@ -237,5 +338,19 @@ class Api::V1::PricingControllerTest < ActionDispatch::IntegrationTest
     Api::V1::PricingService.instance_variable_set(:@rates, {})
     Api::V1::PricingService.instance_variable_set(:@fetched_at, nil)
     Api::V1::PricingService.instance_variable_set(:@last_refresh_failed_at, nil)
+  end
+
+  def expire_pricing_cache!
+    Api::V1::PricingService.instance_variable_set(
+      :@fetched_at,
+      Api::V1::PricingService::CACHE_TTL.ago - 1.second
+    )
+  end
+
+  def expire_failure_cooldown!
+    Api::V1::PricingService.instance_variable_set(
+      :@last_refresh_failed_at,
+      Api::V1::PricingService::FAILURE_COOLDOWN.ago - 1.second
+    )
   end
 end
