@@ -233,12 +233,68 @@ I avoided adding Redis, a scheduler, or distributed locking to the assignment im
 
 ---
 
+## Requirements
+
+To run this project locally, make sure the following are available:
+
+- Docker
+- Docker CLI
+- Internet access to pull the upstream Rate API image
+- `curl` installed locally
+- Ports `3000` and `8080` available
+
+The application uses two Docker containers:
+
+- `rate-api` - the upstream dynamic pricing API
+- `pricing-api` - this Rails pricing proxy application
+
+The helper script `run.sh` starts both services.
+
+---
+
 ## Running the Service
 
-Build and start the application:
+Make sure the script is executable:
 
 ```bash
-docker compose up -d --build
+chmod +x run.sh
+```
+
+Start both services:
+
+```bash
+./run.sh
+```
+
+or explicitly:
+
+```bash
+./run.sh start
+```
+
+The script will:
+
+1. Create a Docker network if needed.
+2. Pull the upstream Rate API image:
+
+```bash
+docker pull tripladev/rate-api:latest
+```
+
+3. Start the Rate API container on port `8080`.
+4. Build the Rails Pricing API Docker image.
+5. Start the Rails Pricing API container on port `3000`.
+6. Configure the Rails app to call the Rate API using:
+
+```text
+RATE_API_URL=http://rate-api:8080
+```
+
+After the script finishes, both services should be available:
+
+```text
+Rate API:    http://localhost:8080
+Pricing API: http://localhost:3000
 ```
 
 Test the pricing endpoint:
@@ -247,14 +303,27 @@ Test the pricing endpoint:
 curl 'http://localhost:3000/api/v1/pricing?period=Summer&hotel=FloatingPointResort&room=SingletonRoom'
 ```
 
-Run the test suite:
+Example response:
 
-```bash
-docker compose exec interview-dev ./bin/rails test
+```json
+{
+  "rate": "12000"
+}
 ```
 
-Run a specific test file:
+The exact rate value may vary depending on the upstream pricing API response.
+
+---
+
+## Running Tests
+
+Run the test suite with:
 
 ```bash
-docker compose exec interview-dev ./bin/rails test test/controllers/pricing_controller_test.rb
+./run.sh test
 ```
+
+The test command runs the Rails tests inside Docker.
+If the Rate API container is not already running, the script starts it first.
+
+---
